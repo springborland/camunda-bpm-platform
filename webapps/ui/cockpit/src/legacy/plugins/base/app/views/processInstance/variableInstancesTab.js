@@ -16,6 +16,7 @@
  */
 
 const searchConfig = require("./variable-instances-tab-search-config.json");
+const { default: debouncePromiseFactory } = require("debouncePromise");
 
 var angular = require("angular");
 
@@ -25,6 +26,7 @@ var variableInstancesTabSearchConfig = searchConfig;
 var instancesTemplate = require("./variable-instances-tab.html.js");
 var inspectTemplate = require("../../../../../client/scripts/components/variables/variable-inspect-dialog");
 var uploadTemplate = require("../../../../../client/scripts/components/variables/variable-upload-dialog");
+const debouncePromise = debouncePromiseFactory();
 
 module.exports = function(ngModule) {
   ngModule.controller("VariableInstancesController", [
@@ -126,7 +128,7 @@ module.exports = function(ngModule) {
             },
             controller: uploadTemplate.controller,
             template: uploadTemplate.template,
-            appendTo: angular.element('.angular-app')
+            appendTo: angular.element(".angular-app")
           })
           .result.then(
             function() {
@@ -245,7 +247,7 @@ module.exports = function(ngModule) {
                 return info.variable;
               }
             },
-            appendTo: angular.element('.angular-app')
+            appendTo: angular.element(".angular-app")
           })
           .result.then(
             function() {
@@ -409,8 +411,7 @@ module.exports = function(ngModule) {
           .then(function(response) {
             $scope.total = response.count;
             // get variables objects
-            return variableService
-              .instances(params)
+            return debouncePromise(variableService.instances(params))
               .then(function(response) {
                 var data = response;
 
@@ -461,6 +462,7 @@ module.exports = function(ngModule) {
                   };
                 });
                 $scope.loadingState = data.length ? "LOADED" : "EMPTY";
+                $scope.$apply();
                 return $scope.total;
               })
               .catch(angular.noop);

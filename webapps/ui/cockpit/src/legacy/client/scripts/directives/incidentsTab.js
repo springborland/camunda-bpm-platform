@@ -19,6 +19,10 @@ var angular = require("angular");
 
 var template = require("./incidents-tab.html.js");
 var inspectTemplate = require("./incidents-tab-stacktrace.html.js");
+const {
+  default: createNewContext
+} = require("../../../../modules/debouncePromise.js");
+const debouncePromise = createNewContext();
 
 var Directive = [
   "$http",
@@ -208,8 +212,9 @@ var Directive = [
 
         // get the incidents
         scope.loadingState = "LOADING";
-        return $http
-          .post(Uri.appUri(baseUrl), params, { params: pagingParams })
+        return debouncePromise(
+          $http.post(Uri.appUri(baseUrl), params, { params: pagingParams })
+        )
           .then(function(res) {
             var data = res.data;
             angular.forEach(data, function(incident) {
@@ -233,6 +238,7 @@ var Directive = [
 
             scope.incidents = data;
             scope.loadingState = data.length ? "LOADED" : "EMPTY";
+            scope.$digest();
           })
           .catch(angular.noop);
       }

@@ -21,6 +21,10 @@ const decisionSearchConfig = require("./decision-instance-search-config.json");
 
 var template = require("./decision-instance-table.html.js");
 
+const { default: debouncePromiseFactory } = require("debouncePromise");
+const debounceCount = debouncePromiseFactory();
+const debounceQuery = debouncePromiseFactory();
+
 module.exports = [
   "ViewsProvider",
   function(ViewsProvider) {
@@ -156,17 +160,19 @@ module.exports = [
               searchQuery
             );
 
-            return historyService
-              .decisionInstanceCount(countQuery)
+            return debounceCount(
+              historyService.decisionInstanceCount(countQuery)
+            )
               .then(function(data) {
                 var total = data.count;
 
-                return historyService
-                  .decisionInstance(decisionInstanceQuery)
+                return debounceQuery(
+                  historyService.decisionInstance(decisionInstanceQuery)
+                )
                   .then(function(data) {
                     $scope.decisionInstances = data;
                     $scope.loadingState = data.length ? "LOADED" : "EMPTY";
-
+                    $scope.$apply();
                     return total;
                   })
                   .catch(angular.noop);

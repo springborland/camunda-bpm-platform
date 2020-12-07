@@ -21,6 +21,9 @@ var angular = require("angular");
 var template = require("./cam-cockpit-deployments.html.js");
 var searchConfigJSON = require("./cam-cockpit-deployments-search-plugin-config.json");
 
+const { default: debouncePromiseFactory } = require("debouncePromise");
+const debounceQuery = debouncePromiseFactory();
+
 module.exports = [
   function() {
     return {
@@ -65,8 +68,10 @@ module.exports = [
               maxResults: pages.size
             };
 
-            return Deployment.list(
-              lodash.assign(query, pagination, $scope.deploymentsSorting)
+            return debounceQuery(
+              Deployment.list(
+                lodash.assign(query, pagination, $scope.deploymentsSorting)
+              )
             )
               .then(function(res) {
                 $scope.deployments = res.items;

@@ -26,6 +26,11 @@ var searchConfig = JSON.parse(
 
 var angular = require('../../../../../camunda-commons-ui/vendor/angular');
 
+var debouncePromiseFactory = require('camunda-bpm-sdk-js').utils
+  .debouncePromiseFactory;
+var debounceQuery = debouncePromiseFactory();
+var debounceCount = debouncePromiseFactory();
+
 var Controller = [
   '$scope',
   'page',
@@ -72,17 +77,20 @@ var Controller = [
       $scope.groupList = null;
       $scope.loadingState = 'LOADING';
 
-      return GroupResource.count(angular.extend({}, $scope.query))
-        .$promise.then(function(data) {
+      return debounceCount(
+        GroupResource.count(angular.extend({}, $scope.query)).$promise
+      )
+        .then(function(data) {
           var total = data.count;
 
-          return GroupResource.query(
-            angular.extend({}, $scope.query, queryParams)
+          return debounceQuery(
+            GroupResource.query(angular.extend({}, $scope.query, queryParams))
+              .$promise
           )
-            .$promise.then(function(data) {
+            .then(function(data) {
               $scope.groupList = data;
               $scope.loadingState = data.length ? 'LOADED' : 'EMPTY';
-
+              $scope.$apply();
               return total;
             })
             .catch(angular.noop);

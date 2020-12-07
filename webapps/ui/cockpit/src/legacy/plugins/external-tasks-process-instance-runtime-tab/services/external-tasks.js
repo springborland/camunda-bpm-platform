@@ -16,6 +16,8 @@
  */
 
 var angular = require("../../../camunda-commons-ui/vendor/angular");
+const { default: debouncePromiseFactory } = require("debouncePromise");
+const debouncePromise = debouncePromiseFactory();
 
 module.exports = [
   "camAPI",
@@ -39,10 +41,12 @@ module.exports = [
     ) {
       var countParams = { processInstanceId: processId };
       var sortParams = { sorting: [sorting] };
-      return getExternalTasks(
-        angular.extend(countParams, otherParams),
-        pages,
-        sortParams
+      return debouncePromise(
+        getExternalTasks(
+          angular.extend(countParams, otherParams),
+          pages,
+          sortParams
+        )
       );
     }
   }
