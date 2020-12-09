@@ -2,7 +2,7 @@ import groovy.json.JsonOutput
 
 // https://github.com/camunda/jenkins-global-shared-library
 // https://github.com/camunda/cambpm-jenkins-shared-library
-@Library(['camunda-ci', 'cambpm-jenkins-shared-library@CAM-12851-agent-methods']) _
+@Library(['camunda-ci', 'cambpm-jenkins-shared-library@pipeline-ahmed']) _
 
 def failedStageTypes = []
 
@@ -13,90 +13,26 @@ pipeline {
     copyArtifactPermission('*');
   }
   parameters {
-      string defaultValue: cambpmDefaultBranch(), description: 'The name of the EE branch to run the EE pipeline on', name: 'EE_BRANCH_NAME'
+      string defaultValue: cambpmDefaultBranch(), description: 'The name of the EE branch to run the EE pipeline on',
+      name: 'EE_BRANCH_NAME'
   }
+
   stages {
-    stage('ASSEMBLY') {
-      when {
-        expression {
-          env.BRANCH_NAME == cambpmDefaultBranch() || !pullRequest.labels.contains('no-build')
-        }
-        beforeAgent true
-      }
-      agent {
-        node {
-          label 'centos-stable'
-        }
-      }
-      steps {
-        withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-          nodejs('nodejs-14.6.0'){
-             configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
-               sh """
-                 mvn -s \$MAVEN_SETTINGS_XML clean install source:jar -Pdistro,distro-ce,distro-wildfly,distro-webjar -DskipTests -Dmaven.repo.local=\${WORKSPACE}/.m2 com.mycila:license-maven-plugin:check -B
-               """
-             }
-          }
 
-          // archive all .jar, .pom, .xml, .txt runtime artifacts + required .war/.zip/.tar.gz for EE pipeline
-          // add a new line for each group of artifacts
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/*.jar,.m2/org/camunda/**/*-SNAPSHOT/**/*.pom,.m2/org/camunda/**/*-SNAPSHOT/**/*.xml,.m2/org/camunda/**/*-SNAPSHOT/**/*.txt', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-webapp*frontend-sources.zip', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/license-book*.zip', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-jboss-modules*.zip', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-*-assembly*.tar.gz', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-webapp*.war', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-engine-rest*.war', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-example-invoice*.war', followSymlinks: false
-          archiveArtifacts artifacts: '.m2/org/camunda/**/*-SNAPSHOT/**/camunda-h2-webapp*.war', followSymlinks: false
-
-          stash name: "platform-stash-runtime", includes: ".m2/org/camunda/**/*-SNAPSHOT/**", excludes: "**/qa/**,**/*qa*/**,**/*.zip,**/*.tar.gz"
-          stash name: "platform-stash-archives", includes: ".m2/org/camunda/bpm/**/*-SNAPSHOT/**/*.zip,.m2/org/camunda/bpm/**/*-SNAPSHOT/**/*.tar.gz"
-          stash name: "platform-stash-qa", includes: ".m2/org/camunda/bpm/**/qa/**/*-SNAPSHOT/**,.m2/org/camunda/bpm/**/*qa*/**/*-SNAPSHOT/**", excludes: "**/*.zip,**/*.tar.gz"
-
-        }
-        
-
-        script {
-          String labels = '';
-          if (env.BRANCH_NAME != cambpmDefaultBranch()) {
-            labels = JsonOutput.toJson(pullRequest.labels)
-          }
-
-          build job: "cambpm-ee/cambpm-ee-main/${params.EE_BRANCH_NAME}", parameters: [
-                  string(name: 'copyArtifactSelector', value: '<TriggeredBuildSelector plugin="copyartifact@1.45.1">  <upstreamFilterStrategy>UseGlobalSetting</upstreamFilterStrategy>  <allowUpstreamDependencies>false</allowUpstreamDependencies></TriggeredBuildSelector>'),
-                  booleanParam(name: 'STANDALONE', value: false),
-                  string(name: 'CE_BRANCH_NAME', value: "${env.BRANCH_NAME}"),
-                  string(name: 'PR_LABELS', value: labels)
-          ], quietPeriod: 10, wait: false
-
-          if (withLabels('all-db','cockroachdb','authorizations')) {
-           build job: "cambpm-ce/cambpm-sidetrack/${env.BRANCH_NAME}", parameters: [
-           string(name: 'copyArtifactSelector', value: '<TriggeredBuildSelector plugin="copyartifact@1.45.1">  <upstreamFilterStrategy>UseGlobalSetting</upstreamFilterStrategy>  <allowUpstreamDependencies>false</allowUpstreamDependencies></TriggeredBuildSelector>'),
-               booleanParam(name: 'STANDALONE', value: false),
-               string(name: 'PR_LABELS', value: labels)
-           ], quietPeriod: 10, wait: false
-          }
-
-          if (withLabels('default-build','rolling-update','migration','all-db','h2','db2','mysql','oracle','mariadb','sqlserver','postgresql','cockroachdb','daily')) {
-           build job: "cambpm-ce/cambpm-daily/${env.BRANCH_NAME}", parameters: [
-               string(name: 'copyArtifactSelector', value: '<TriggeredBuildSelector plugin="copyartifact@1.45.1">  <upstreamFilterStrategy>UseGlobalSetting</upstreamFilterStrategy>  <allowUpstreamDependencies>false</allowUpstreamDependencies></TriggeredBuildSelector>'),
-               booleanParam(name: 'STANDALONE', value: false),
-               string(name: 'PR_LABELS', value: labels)
-           ], quietPeriod: 10, wait: false
-          }
-
-          if (env.BRANCH_NAME == 'master') {
-            withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-              configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
-               sh 'mvn -s \$MAVEN_SETTINGS_XML org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DaltStagingDirectory=${WORKSPACE}/staging -Dmaven.repo.local=${WORKSPACE}/.m2 -DskipStaging=true -B'
-              }
+    // For more details, please read the note in dbTasksMatrix method.
+    stage("DB Matrix") {
+      // Should be called in declarative "parallel" to make the visualization works in Jenkins Blue Ocean UI.
+      parallel {
+        stage('Run DB Matrix') {
+          steps {
+            script {
+              parallel(dbTasksMatrix())
             }
           }
         }
-
       }
     }
+
     stage('h2 tests') {
       parallel {
         stage('engine-UNIT-h2') {
@@ -412,48 +348,7 @@ pipeline {
         }
       }
     }
-    stage('UNIT DB tests') {
-      matrix {
-        axes {
-          axis {
-            name 'DB'
-            values 'postgresql_96', 'postgresql_94', 'postgresql_107', 'postgresql_112', 'postgresql_122', 'cockroachdb_201', 'mariadb_100', 'mariadb_102', 'mariadb_103', 'mariadb_galera', 'mysql_57', 'oracle_11', 'oracle_12', 'oracle_18', 'oracle_19', 'db2_105', 'db2_111', 'sqlserver_2017', 'sqlserver_2019'
-          }
-          axis {
-            name 'PROFILE'
-            values 'engine-unit', 'engine-unit-authorizations', 'webapps-unit', 'webapps-unit-authorizations'
-          }
-        }
-        when {
-          expression {
-            skipStageType(failedStageTypes, env.PROFILE) && (withLabels(getLabels(env.PROFILE)) || withDbLabels(env.DB))
-          }
-          beforeAgent true
-        }
-        agent {
-          node {
-            label env.DB
-          }
-        }
-        stages {
-          stage('UNIT test') {
-            steps {
-              echo("UNIT DB Test Stage: ${env.PROFILE}-${env.DB}")
-              catchError(stageResult: 'FAILURE') {
-                withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                  runMaven(true, false, false, getMavenProfileDir(env.PROFILE), getMavenProfileCmd(env.PROFILE) + cambpmGetDbProfiles(env.DB) + " " + cambpmGetDbExtras(env.DB), true)
-                }
-              }
-            }
-            post {
-              always {
-                cambpmPublishTestResult();
-              }
-            }
-          }
-        }
-      }
-    }
+
     stage('db tests + CE webapps IT') {
       parallel {
         stage('engine-api-compatibility') {
@@ -745,4 +640,72 @@ void addFailedStageType(List failedStageTypesList, String stageType) {
 
 boolean skipStageType(List failedStageTypesList, String stageType) {
   !failedStageTypesList.contains(stageType)
+}
+
+def dbTasksMatrix() {
+  // This is a workaround to build a matrix programatically and run it in scripted pipeline style
+  // till the Jenkins bug "Method code too large!" is fixed.
+  // https://issues.jenkins.io/browse/JENKINS-37984
+  // https://www.jenkins.io/blog/2019/12/02/matrix-building-with-scripted-pipeline
+
+  Map matrix_axes = [
+      DB: [
+        'postgresql_96', 'postgresql_94', 'postgresql_107', 'postgresql_112', 'postgresql_122',
+        'cockroachdb_201', 'mariadb_100', 'mariadb_102', 'mariadb_103', 'mariadb_galera', 'mysql_57',
+        'oracle_11', 'oracle_12', 'oracle_18', 'oracle_19', 'db2_105', 'db2_111', 'sqlserver_2017', 'sqlserver_2019'
+      ],
+      PROFILE: [
+        'engine-unit', 'engine-unit-authorizations', 'webapps-unit', 'webapps-unit-authorizations'
+      ]
+  ]
+
+  List axes = cambpmGetMatrixAxes(matrix_axes)
+
+  // Parallel task map.
+  Map tasks = [failFast: false]
+
+  for(int i = 0; i < axes.size(); i++) {
+
+    // Convert the Axis into valid values for withEnv step.
+    Map axis = axes[i]
+    List axisEnv = axis.collect { k, v ->
+        "${k}=${v}"
+    }
+
+    String agentNodeLabel = axis['DB']
+
+    // This If statement works like 'when' in the declarative style.
+    // It only adds the database to tasks list according to the PR label.
+    if (
+      true
+      // skipStageType(failedStageTypes, env.PROFILE) &&
+      // (withLabels(getLabels(env.PROFILE)) || withDbLabels(env.DB))
+    ) {
+      tasks[axisEnv.join(', ')] = { ->
+        node(agentNodeLabel) {
+          withEnv(axisEnv) {
+            stage("QA test") {
+              // The 'stage' here works like a 'step' in the declarative style.
+              stage("Run Maven DB") {
+                echo "QA DB Test Stage: ${PROFILE}-${DB}"
+                // catchError(stageResult: 'FAILURE') {
+                  withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest',
+                            mavenSettingsConfig: 'camunda-maven-settings',
+                            options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]
+                  ) {
+                    runMaven(true, false, isQaStashEnabled(env.PROFILE), getMavenProfileDir(env.PROFILE), getMavenProfileCmd(env.PROFILE) + cambpmGetDbProfiles(env.DB) + " " + cambpmGetDbExtras(env.DB), true)
+                  }
+                //}
+              }
+              stage("PublishTestResult for DB") {
+                cambpmPublishTestResult();
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return tasks
 }
