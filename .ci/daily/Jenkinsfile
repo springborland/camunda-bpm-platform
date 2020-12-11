@@ -70,7 +70,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('check-sql'), cambpmGetMavenTargetDir('check-sql'), cambpmGetMavenTargetAndProfile('check-sql') + cambpmGetDbProfiles('h2'))
+                cambpmRunMavenByStageType('sql-scripts', 'h2', params.STANDALONE)
               }
             }
           }
@@ -95,7 +95,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('upgrade-db'), cambpmGetMavenTargetDir('upgrade-db'), cambpmGetMavenTargetAndProfile('upgrade-db') + cambpmGetDbProfiles('h2'))
+                cambpmRunMavenByStageType('upgrade-database', 'h2', params.STANDALONE)
               }
             }
           }
@@ -123,7 +123,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('instance-migration'), cambpmGetMavenTargetDir('instance-migration'), cambpmGetMavenTargetAndProfile('instance-migration') + cambpmGetDbProfiles('h2'))
+                cambpmRunMaven('instance-migration', 'h2', params.STANDALONE)
               }
             }
           }
@@ -151,7 +151,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('old-engine'), cambpmGetMavenTargetDir('old-engine'), cambpmGetMavenTargetAndProfile('old-engine') + cambpmGetDbProfiles('h2'))
+                cambpmRunMavenByStageType('old-engine', 'h2', params.STANDALONE)
               }
             }
           }
@@ -179,7 +179,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('rolling-update'), cambpmGetMavenTargetDir('rolling-update'), cambpmGetMavenTargetAndProfile('rolling-update') + cambpmGetDbProfiles('h2'))
+                cambpmRunMavenByStageType('rolling-update', 'h2', params.STANDALONE)
               }
             }
           }
@@ -205,7 +205,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                cambpmRunMaven(true, false, cambpmIsQaStashEnabled('large-data-tests'), cambpmGetMavenTargetDir('large-data-tests'), cambpmGetMavenTargetAndProfile('large-data-tests') + cambpmGetDbProfiles('h2'))
+                cambpmRunMaven('large-data-tests', 'h2', params.STANDALONE)
               }
             }
           }
@@ -228,13 +228,13 @@ pipeline {
             values 'postgresql_96', 'postgresql_94', 'postgresql_107', 'postgresql_112', 'postgresql_122', 'cockroachdb_201', 'mariadb_100', 'mariadb_102', 'mariadb_103', 'mariadb_galera', 'mysql_57', 'oracle_11', 'oracle_12', 'oracle_18', 'oracle_19', 'db2_105', 'db2_111', 'sqlserver_2017', 'sqlserver_2019'
           }
           axis {
-            name 'PROFILE'
+            name 'STAGE_TYPE'
             values 'sql-scripts', 'upgrade-database', 'instance-migration', 'old-engine', 'rolling-update', 'large-data-tests'
           }
         }
         when {
           expression {
-            cambpmIsNotFailedStageType(failedStageTypes, env.PROFILE) && cambpmWithLabelsList(cambpmGetLabels(env.PROFILE, 'cockroachdb'))
+            cambpmIsNotFailedStageType(failedStageTypes, env.STAGE_TYPE) && cambpmWithLabelsList(cambpmGetLabels(env.STAGE_TYPE, 'cockroachdb'))
           }
           beforeAgent true
         }
@@ -246,10 +246,10 @@ pipeline {
         stages {
           stage("QA test") {
             steps {
-              echo("QA DB Test Stage: ${env.PROFILE}-${env.DB}")
+              echo("QA DB Test Stage: ${env.STAGE_TYPE}-${env.DB}")
               catchError(stageResult: 'FAILURE') {
                 withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                  cambpmRunMaven(true, false, cambpmIsQaStashEnabled(env.PROFILE), cambpmGetMavenTargetDir(env.PROFILE), cambpmGetMavenTargetAndProfile(env.PROFILE) + cambpmGetDbProfiles(DB) + " " + cambpmGetDbExtras(env.DB), true)
+                  cambpmRunMavenByStageType(env.STAGE_TYPE, env.DB, params.STANDALONE)
                 }
               }
             }
@@ -286,7 +286,7 @@ pipeline {
             steps {
               catchError(stageResult: 'FAILURE') {
                 withMaven(jdk: env.JDK, maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                  cambpmRunMaven(true, false, false, '.', 'install source:jar source:test-jar -pl \'!webapps\',\'!distro/jbossas7/subsystem\' -Pdistro,distro-ce,distro-wildfly')
+                  cambpmRunMaven('.', 'install source:jar source:test-jar -pl \'!webapps\',\'!distro/jbossas7/subsystem\' -Pdistro,distro-ce,distro-wildfly', params.STANDALONE, runtimeStash: true)
                 }
               }
             }
