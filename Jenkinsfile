@@ -27,7 +27,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                runMaven(true, false, false, getMavenProfileDir('engine-unit'), getMavenProfileCmd('engine-unit') + cambpmGetDbProfiles('h2'), true)
+                runMaven(true, false, false, getMavenProfileDir('engine-unit'), getMavenProfileCmd('engine-unit') + cambpmGetDbProfiles('h2'))
               }
             }
           }
@@ -48,7 +48,10 @@ pipeline {
       script {
         if (!agentDisconnected()){ 
           //emailextrecipients([brokenBuildSuspects()])
-          emailext body: 'Please ignore and do not reply', recipientProviders: [brokenBuildSuspects()], subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com'
+          emailext body: 'Please ignore and do not reply',
+                   recipientProviders: [brokenBuildSuspects(), developers(), requestor()],
+                   subject: 'Jenkins failure',
+                   to: 'yana.vasileva@camunda.com'
         }
       }
     }
