@@ -70,7 +70,7 @@ void runMaven(boolean runtimeStash, boolean archivesStash, boolean qaStash, Stri
 //  if (qaStash) unstash "platform-stash-qa"
   String forkCount = singleThreaded? "-DforkCount=1" : '';
   configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
-    sh("mvn -s \$MAVEN_SETTINGS_XML ${forkCount} ${cmd} -nsu -Dtests=RuntimeServiceTest -Dmaven.repo.local=\${WORKSPACE}/.m2  -f ${directory}/pom.xml -B")
+    sh("mvn -s \$MAVEN_SETTINGS_XML ${forkCount} ${cmd} -nsu -Dmaven.repo.local=\${WORKSPACE}/.m2  -f ${directory}/pom.xml -B")
   }
 }
 
@@ -104,7 +104,7 @@ String resolveMavenProfileInfo(String profile) {
   Map PROFILE_PATHS = [
       'engine-unit': [
           directory: 'engine',
-          command: 'clean test -P',
+          command: 'clean test -Dtest.includes=bpmn -P',
           labels: ['authorizations']],
       'engine-unit-authorizations': [
           directory: 'engine',
