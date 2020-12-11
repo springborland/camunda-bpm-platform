@@ -4,44 +4,6 @@ import groovy.json.JsonOutput
 // https://github.com/camunda/cambpm-jenkins-shared-library
 @Library(['camunda-ci', 'cambpm-jenkins-shared-library']) _
 
-String getAgent(String dockerImage = 'gcr.io/ci-30-162810/centos:v0.4.6', Integer cpuLimit = 4){
-  String mavenForkCount = cpuLimit;
-  String mavenMemoryLimit = cpuLimit * 2;
-  """
-metadata:
-  labels:
-    agent: ci-cambpm-camunda-cloud-build
-spec:
-  nodeSelector:
-    cloud.google.com/gke-nodepool: agents-n1-standard-32-netssd-preempt
-  tolerations:
-  - key: "agents-n1-standard-32-netssd-preempt"
-    operator: "Exists"
-    effect: "NoSchedule"
-  containers:
-  - name: "jnlp"
-    image: "${dockerImage}"
-    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    tty: true
-    env:
-    - name: LIMITS_CPU
-      value: ${mavenForkCount}
-    - name: TZ
-      value: Europe/Berlin
-    resources:
-      limits:
-        cpu: ${cpuLimit}
-        memory: ${mavenMemoryLimit}Gi
-      requests:
-        cpu: ${cpuLimit}
-        memory: ${mavenMemoryLimit}Gi
-    workingDir: "/home/work"
-    volumeMounts:
-      - mountPath: /home/work
-        name: workspace-volume
-  """
-}
-
 def failedStageTypes = []
 
 pipeline {
@@ -51,18 +13,12 @@ pipeline {
     copyArtifactPermission('*');
   }
   parameters {
-      string defaultValue: cambpmDefaultBranch(), description: 'The name of the EE branch to run the EE pipeline on', name: 'EE_BRANCH_NAME'
+    string defaultValue: cambpmDefaultBranch(), description: 'The name of the EE branch to run the EE pipeline on', name: 'EE_BRANCH_NAME'
   }
   stages {
     stage('h2 tests') {
       parallel {
         stage('engine-UNIT-h2') {
-          when {
-            expression {
-              withLabels('h2', 'rolling-update', 'migration')
-            }
-            beforeAgent true
-          }
           agent {
             label 'h2'
           }
@@ -89,7 +45,8 @@ pipeline {
     changed {
       script {
         if (!agentDisconnected()){ 
-          emailextrecipients([brokenBuildSuspects()])
+          //emailextrecipients([brokenBuildSuspects()])
+          emailext subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com', subject: 'Please ignore and do not reply'
         }
       }
     }
@@ -141,55 +98,11 @@ boolean withDbLabels(String dbLabel) {
   return withLabels(cambpmGetDbType(dbLabel),'all-db')
 }
 
-String getDbAgent(String dbLabel, Integer cpuLimit = 4, Integer mavenForkCount = 1){
-  Map dbInfo = cambpmGetDbInfo(dbLabel)
-  String mavenMemoryLimit = cpuLimit * 4;
-  """
-metadata:
-  labels:
-    name: "${dbLabel}"
-    jenkins: "slave"
-    jenkins/label: "jenkins-slave-${dbInfo.type}"
-spec:
-  containers:
-  - name: "jnlp"
-    image: "gcr.io/ci-30-162810/${dbInfo.type}:${dbInfo.version}"
-    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    tty: true
-    env:
-    - name: LIMITS_CPU
-      value: ${mavenForkCount}
-    - name: TZ
-      value: Europe/Berlin
-    resources:
-      limits:
-        memory: ${mavenMemoryLimit}Gi
-      requests:
-        cpu: ${cpuLimit}
-        memory: ${mavenMemoryLimit}Gi
-    volumeMounts:
-    - mountPath: "/home/work"
-      name: "workspace-volume"
-    workingDir: "/home/work"
-    nodeSelector:
-      cloud.google.com/gke-nodepool: "agents-n1-standard-4-netssd-preempt"
-    restartPolicy: "Never"
-    tolerations:
-    - effect: "NoSchedule"
-      key: "agents-n1-standard-4-netssd-preempt"
-      operator: "Exists"
-    volumes:
-    - emptyDir:
-        medium: ""
-      name: "workspace-volume"
-  """
-}
-
 String resolveMavenProfileInfo(String profile) {
   Map PROFILE_PATHS = [
       'engine-unit': [
           directory: 'engine',
-          command: 'clean test -P',
+          command: 'clean test -Dtests=*Runtime* -P',
           labels: ['authorizations']],
       'engine-unit-authorizations': [
           directory: 'engine',
