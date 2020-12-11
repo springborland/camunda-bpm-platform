@@ -27,7 +27,7 @@ pipeline {
           steps {
             catchError(stageResult: 'FAILURE') {
               withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                runMaven(true, false, false, getMavenProfileDir('engine-unit'), getMavenProfileCmd('engine-unit') + cambpmGetDbProfiles('h2'))
+                runMaven(true, false, false, getMavenProfileDir('engine-unit'), getMavenProfileCmd('engine-unit') + cambpmGetDbProfiles('h2'), true)
               }
             }
           }
@@ -48,7 +48,7 @@ pipeline {
       script {
         if (!agentDisconnected()){ 
           //emailextrecipients([brokenBuildSuspects()])
-          emailext body: 'Please ignore and do not reply', subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com'
+          emailext body: 'Please ignore and do not reply', recipientProviders: [brokenBuildSuspects()], subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com'
         }
       }
     }
@@ -70,7 +70,7 @@ void runMaven(boolean runtimeStash, boolean archivesStash, boolean qaStash, Stri
 //  if (qaStash) unstash "platform-stash-qa"
   String forkCount = singleThreaded? "-DforkCount=1" : '';
   configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
-    sh("mvn -s \$MAVEN_SETTINGS_XML ${forkCount} ${cmd} -nsu -Dmaven.repo.local=\${WORKSPACE}/.m2  -f ${directory}/pom.xml -B")
+    sh("mvn -s \$MAVEN_SETTINGS_XML ${forkCount} ${cmd} -nsu -Dtests=RuntimeServiceTest -Dmaven.repo.local=\${WORKSPACE}/.m2  -f ${directory}/pom.xml -B")
   }
 }
 
@@ -104,7 +104,7 @@ String resolveMavenProfileInfo(String profile) {
   Map PROFILE_PATHS = [
       'engine-unit': [
           directory: 'engine',
-          command: 'clean test -Dtests=*Runtime* -P',
+          command: 'clean test -P',
           labels: ['authorizations']],
       'engine-unit-authorizations': [
           directory: 'engine',
