@@ -181,10 +181,11 @@ var Directive = [
 
         // Add default sorting param
         if (sortObj) {
-          defaultParams.sortBy = scope.sortObj.sortBy;
-          defaultParams.sortOrder = scope.sortObj.sortOrder;
           saveLocal(sortObj);
         }
+
+        defaultParams.sortBy = scope.sortObj.sortBy;
+        defaultParams.sortOrder = scope.sortObj.sortOrder;
 
         var pagingParams = {
           firstResult: firstResult,
