@@ -73,7 +73,9 @@ module.exports = [
         downloadVar: '=?onDownload',
         uploadVar: '=?onUpload',
         onSortChange: '&',
-        defaultSort: '=?'
+        onValidation: '&',
+        defaultSort: '=?',
+        ignoreTypes: '=?'
       },
 
       link: function($scope) {
@@ -116,6 +118,11 @@ module.exports = [
         $scope.editable = $scope.editable || $scope.headerClasses;
 
         $scope.variableTypes = angular.copy(varUtils.types);
+        $scope.variableTypes = $scope.ignoreTypes
+          ? $scope.variableTypes.filter(
+              types => !$scope.ignoreTypes.includes(types)
+            )
+          : $scope.variableTypes;
         $scope.defaultValues = varUtils.defaultValues;
         $scope.isPrimitive = varUtils.isPrimitive($scope);
         $scope.isBinary = varUtils.isBinary($scope);
