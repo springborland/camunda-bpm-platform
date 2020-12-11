@@ -20,7 +20,9 @@ pipeline {
       parallel {
         stage('engine-UNIT-h2') {
           agent {
-            label 'h2'
+            node {
+              label 'h2'
+            }
           }
           steps {
             catchError(stageResult: 'FAILURE') {
