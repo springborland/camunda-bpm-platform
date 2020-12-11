@@ -46,7 +46,7 @@ pipeline {
       script {
         if (!agentDisconnected()){ 
           //emailextrecipients([brokenBuildSuspects()])
-          emailext subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com', subject: 'Please ignore and do not reply'
+          emailext body: 'Please ignore and do not reply', subject: 'Jenkins failure', to: 'yana.vasileva@camunda.com'
         }
       }
     }
