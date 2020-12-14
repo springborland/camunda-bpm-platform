@@ -4,4 +4,3 @@ ui/**/grunt/**/*.js
 grunt/
 Gruntfile.js
 
-ui/cockpit/client/scripts/*.js
