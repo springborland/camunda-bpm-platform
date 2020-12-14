@@ -287,6 +287,7 @@ pipeline {
             expression {
               cambpmWithLabels('all-as','wildfly')
             }
+            beforeAgent true
           }
           agent {
             node {
