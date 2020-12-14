@@ -67,7 +67,7 @@ pipeline {
               echo("UNIT DB Test Stage: ${env.STAGE_TYPE}-${env.DB}")
               catchError(stageResult: 'FAILURE') {
                 withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                  cambpmRunMavenByStageType(env.STAGE_TYPE, env.DB, params.STANDALONE)
+                  cambpmRunMavenByStageType(env.STAGE_TYPE, env.DB)
                 }
               }
             }
