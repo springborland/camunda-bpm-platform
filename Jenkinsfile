@@ -1,8 +1,11 @@
 // https://github.com/camunda/jenkins-global-shared-library
 // https://github.com/camunda/cambpm-jenkins-shared-library
-@Library(['camunda-ci', 'cambpm-jenkins-shared-library@CAM-12861-run-maven']) _
+@Library(['camunda-ci', 'cambpm-jenkins-shared-library@CAM-12896-reduce-size']) _
+
 
 def failedStageTypes = []
+def DB = ['postgresql_96', 'postgresql_94', 'postgresql_107']
+def STAGE_TYPE = ['engine-unit', 'engine-unit-authorizations', 'webapp-unit', 'webapp-unit-authorizations']
 
 pipeline {
   agent none
@@ -58,7 +61,7 @@ pipeline {
                       "**/*.zip,**/*.tar.gz")
 
         }
-        
+
 
         script {
           List labels = [];
@@ -411,42 +414,11 @@ pipeline {
       }
     }
     stage('UNIT DB tests') {
-      matrix {
-        axes {
-          axis {
-            name 'DB'
-            values 'postgresql_96', 'postgresql_94', 'postgresql_107'
-          }
-          axis {
-            name 'STAGE_TYPE'
-            values 'engine-unit', 'engine-unit-authorizations', 'webapp-unit', 'webapp-unit-authorizations'
-          }
-        }
-        when {
-          expression {
-            cambpmIsNotFailedStageType(failedStageTypes, env.STAGE_TYPE) && cambpmWithLabelsList(cambpmGetLabels(env.STAGE_TYPE, 'cockroachdb'))
-          }
-          beforeAgent true
-        }
-        agent {
-          node {
-            label env.DB
-          }
-        }
-        stages {
-          stage('UNIT test') {
-            steps {
-              echo("UNIT DB Test Stage: ${env.STAGE_TYPE}-${env.DB}")
-              catchError(stageResult: 'FAILURE') {
-                withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-                  cambpmRunMavenByStageType(env.STAGE_TYPE, env.DB)
-                }
-              }
-            }
-            post {
-              always {
-                cambpmPublishTestResult();
-              }
+      parallel {
+        stage('Run DB Matrix') {
+          steps {
+            script {
+              parallel(getParallelStages(STAGE_TYPE, DB, failedStageTypes))
             }
           }
         }
@@ -649,7 +621,7 @@ pipeline {
   post {
     changed {
       script {
-        if (!agentDisconnected()){ 
+        if (!agentDisconnected()){
           // send email if the slave disconnected
         }
       }
@@ -664,4 +636,46 @@ pipeline {
       }
     }
   }
+}
+
+def getParallelStages(List stageTypes, List dbs, List failedStageTypes) {
+
+  // Parallel task map.
+  Map tasks = [failFast: false]
+  Map axes = [DB: dbs, STAGE_TYPE: stageTypes]
+  List matrixAxes = cambpmGetMatrixAxes(axes)
+
+  matrixAxes.each { stageAxes ->
+    List axisEnv = stageAxes.collect { k, v ->
+      "${k}=${v}"
+    }
+    String dbLabel = stageAxes['DB']
+    String stageType = stageAxes['STAGE_TYPE']
+    if (cambpmIsNotFailedStageType(failedStageTypes, stageType)) {
+      tasks[axisEnv.join(', ')] = { ->
+        node(dbLabel) {
+          withEnv(axisEnv) {
+            stage("$stageType-$dbLabel") {
+              // The 'stage' here works like a 'step' in the declarative style.
+              stage("Run Maven DB") {
+                catchError(stageResult: 'FAILURE') {
+                  withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest',
+                      mavenSettingsConfig: 'camunda-maven-settings',
+                      options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]
+                  ) {
+                    cambpmRunMavenByStageType(stageType, dbLabel)
+                  }
+                }
+              }
+              stage("PublishTestResult for DB") {
+                cambpmPublishTestResult();
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return tasks
 }
