@@ -15,230 +15,245 @@
  * limitations under the License.
  */
 
-window.__define(
-  'camunda-cockpit-bootstrap',
-  ['./scripts/camunda-cockpit-ui'],
-  function() {
-    'use strict';
+//  Camunda-Cockpit-Bootstrap is copied as-is, so we have to inline this
+const loadConfig = (async function() {
+  // eslint-disable-next-line
+  const config = await import(
+    /* webpackIgnore: true */ document.querySelector("base").href + "../" +
+      "scripts/config.js?bust=" +
+      new Date().getTime()
+  );
 
-    var camundaCockpitUi = window.CamundaCockpitUi;
+  console.log(config);
+})();
 
-    requirejs.config({
-      baseUrl: '../../../lib'
-    });
+loadConfig.then(() => {
+  window.__define(
+    'camunda-cockpit-bootstrap',
+    ['./scripts/camunda-cockpit-ui'],
+    function() {
+      'use strict';
 
-    var requirePackages = window;
-    camundaCockpitUi.exposePackages(requirePackages);
-
-    window.define = window.__define;
-    window.require = window.__require;
-
-    requirejs(['globalize'], function(globalize) {
-      globalize(
-        requirejs,
-        [
-          'angular',
-          'camunda-commons-ui',
-          'camunda-bpm-sdk-js',
-          'jquery',
-          'angular-data-depend',
-          'moment',
-          'events'
-        ],
-        requirePackages
-      );
-
-      var pluginPackages = window.PLUGIN_PACKAGES || [];
-      var pluginDependencies = window.PLUGIN_DEPENDENCIES || [];
-
-      pluginPackages.forEach(function(plugin) {
-        var node = document.createElement('link');
-        node.setAttribute('rel', 'stylesheet');
-        node.setAttribute('href', plugin.location + '/plugin.css');
-        document.head.appendChild(node);
-      });
+      var camundaCockpitUi = window.CamundaCockpitUi;
 
       requirejs.config({
-        packages: pluginPackages,
-        baseUrl: '../',
-        paths: {
-          ngDefine: '../../lib/ngDefine'
-        }
+        baseUrl: '../../../lib'
       });
 
-      var dependencies = ['jquery', 'angular', 'ngDefine', 'moment'].concat(
-        pluginDependencies.map(function(plugin) {
-          return plugin.requirePackageName;
-        })
-      );
+      var requirePackages = window;
+      camundaCockpitUi.exposePackages(requirePackages);
 
-      requirejs(dependencies, function(jquery, angular) {
-        // we now loaded the cockpit and the plugins, great
-        // before we start initializing the cockpit though (and leave the requirejs context),
-        // lets see if we should load some custom scripts first
+      window.define = window.__define;
+      window.require = window.__require;
 
-        if (window.camCockpitConf && window.camCockpitConf.csrfCookieName) {
-          angular.module('cam.commons').config([
-            '$httpProvider',
-            function($httpProvider) {
-              $httpProvider.defaults.xsrfCookieName =
-                window.camCockpitConf.csrfCookieName;
-            }
-          ]);
-        }
-
-        if (
-          typeof window.camCockpitConf !== 'undefined' &&
-          (window.camCockpitConf.customScripts || window.camCockpitConf.bpmnJs)
-        ) {
-          var custom = window.camCockpitConf.customScripts || {};
-
-          // copy the relevant RequireJS configuration in a empty object
-          // see: http://requirejs.org/docs/api.html#config
-          var conf = {};
+      requirejs(['globalize'], function(globalize) {
+        globalize(
+          requirejs,
           [
-            'baseUrl',
-            'paths',
-            'bundles',
-            'shim',
-            'map',
-            'config',
-            'packages',
-            // 'nodeIdCompat',
-            'waitSeconds',
-            'context',
-            // 'deps', // not relevant in this case
-            'callback',
-            'enforceDefine',
-            'xhtml',
-            'urlArgs',
-            'scriptType'
-            // 'skipDataMain' // not relevant either
-          ].forEach(function(prop) {
-            if (custom[prop]) {
-              conf[prop] = custom[prop];
-            }
-          });
+            'angular',
+            'camunda-commons-ui',
+            'camunda-bpm-sdk-js',
+            'jquery',
+            'angular-data-depend',
+            'moment',
+            'events'
+          ],
+          requirePackages
+        );
 
-          conf['paths'] = conf['paths'] || {};
+        var pluginPackages = window.PLUGIN_PACKAGES || [];
+        var pluginDependencies = window.PLUGIN_DEPENDENCIES || [];
 
-          custom['deps'] = custom['deps'] || [];
-          custom['ngDeps'] = custom['ngDeps'] || [];
+        pluginPackages.forEach(function(plugin) {
+          var node = document.createElement('link');
+          node.setAttribute('rel', 'stylesheet');
+          node.setAttribute('href', plugin.location + '/plugin.css');
+          document.head.appendChild(node);
+        });
 
-          var bpmnJsAdditionalModules = (window.camCockpitConf.bpmnJs || {})
-            .additionalModules;
+        requirejs.config({
+          packages: pluginPackages,
+          baseUrl: '../',
+          paths: {
+            ngDefine: '../../lib/ngDefine'
+          }
+        });
 
-          if (bpmnJsAdditionalModules) {
-            angular.forEach(bpmnJsAdditionalModules, function(module, name) {
-              conf['paths'][name] = bpmnJsAdditionalModules[name];
-              custom['deps'].push(name);
-            });
+        var dependencies = ['jquery', 'angular', 'ngDefine', 'moment'].concat(
+          pluginDependencies.map(function(plugin) {
+            return plugin.requirePackageName;
+          })
+        );
+
+        requirejs(dependencies, function(jquery, angular) {
+          // we now loaded the cockpit and the plugins, great
+          // before we start initializing the cockpit though (and leave the requirejs context),
+          // lets see if we should load some custom scripts first
+
+          if (window.camCockpitConf && window.camCockpitConf.csrfCookieName) {
+            angular.module('cam.commons').config([
+              '$httpProvider',
+              function($httpProvider) {
+                $httpProvider.defaults.xsrfCookieName =
+                  window.camCockpitConf.csrfCookieName;
+              }
+            ]);
           }
 
-          var bpmnJsModdleExtensions = (window.camCockpitConf.bpmnJs || {})
-            .moddleExtensions;
+          if (
+            typeof window.camCockpitConf !== 'undefined' &&
+            (window.camCockpitConf.customScripts ||
+              window.camCockpitConf.bpmnJs)
+          ) {
+            var custom = window.camCockpitConf.customScripts || {};
 
-          if (bpmnJsModdleExtensions) {
-            var moddleExtensions = {};
-
-            angular.forEach(bpmnJsModdleExtensions, function(
-              path,
-              extensionName
-            ) {
-              moddleExtensions[extensionName] = jquery.getJSON(
-                '../' + path + '.json',
-                function(moddleExtension) {
-                  return moddleExtension;
-                }
-              );
+            // copy the relevant RequireJS configuration in a empty object
+            // see: http://requirejs.org/docs/api.html#config
+            var conf = {};
+            [
+              'baseUrl',
+              'paths',
+              'bundles',
+              'shim',
+              'map',
+              'config',
+              'packages',
+              // 'nodeIdCompat',
+              'waitSeconds',
+              'context',
+              // 'deps', // not relevant in this case
+              'callback',
+              'enforceDefine',
+              'xhtml',
+              'urlArgs',
+              'scriptType'
+              // 'skipDataMain' // not relevant either
+            ].forEach(function(prop) {
+              if (custom[prop]) {
+                conf[prop] = custom[prop];
+              }
             });
 
-            window.bpmnJsModdleExtensions = {};
+            conf['paths'] = conf['paths'] || {};
 
-            var promises = Object.keys(moddleExtensions).map(function(
-              extensionName
-            ) {
-              return moddleExtensions[extensionName];
-            });
+            custom['deps'] = custom['deps'] || [];
+            custom['ngDeps'] = custom['ngDeps'] || [];
 
-            jquery.when(promises).then(function() {
-              // wait until promises are resolved: fail || success
-              angular.forEach(moddleExtensions, function(
-                promise,
+            var bpmnJsAdditionalModules = (window.camCockpitConf.bpmnJs || {})
+              .additionalModules;
+
+            if (bpmnJsAdditionalModules) {
+              angular.forEach(bpmnJsAdditionalModules, function(module, name) {
+                conf['paths'][name] = bpmnJsAdditionalModules[name];
+                custom['deps'].push(name);
+              });
+            }
+
+            var bpmnJsModdleExtensions = (window.camCockpitConf.bpmnJs || {})
+              .moddleExtensions;
+
+            if (bpmnJsModdleExtensions) {
+              var moddleExtensions = {};
+
+              angular.forEach(bpmnJsModdleExtensions, function(
+                path,
                 extensionName
               ) {
-                promise
-                  .done(function(moddleExtension) {
-                    window.bpmnJsModdleExtensions[
-                      extensionName
-                    ] = moddleExtension;
-                  })
-                  .fail(function(response) {
-                    if (response.status === 404) {
-                      // tslint:disable-next-line:no-console
-                      console.error(
-                        'bpmn-js moddle extension "' +
-                          extensionName +
-                          '" could not be loaded.'
-                      );
-                    } else {
-                      // tslint:disable-next-line:no-console
-                      console.error(
-                        'unhandled error with bpmn-js moddle extension "' +
-                          extensionName +
-                          '"'
-                      );
-                    }
-                  });
+                moddleExtensions[extensionName] = jquery.getJSON(
+                  '../' + path + '.json',
+                  function(moddleExtension) {
+                    return moddleExtension;
+                  }
+                );
               });
 
+              window.bpmnJsModdleExtensions = {};
+
+              var promises = Object.keys(moddleExtensions).map(function(
+                extensionName
+              ) {
+                return moddleExtensions[extensionName];
+              });
+
+              jquery.when(promises).then(function() {
+                // wait until promises are resolved: fail || success
+                angular.forEach(moddleExtensions, function(
+                  promise,
+                  extensionName
+                ) {
+                  promise
+                    .done(function(moddleExtension) {
+                      window.bpmnJsModdleExtensions[
+                        extensionName
+                      ] = moddleExtension;
+                    })
+                    .fail(function(response) {
+                      if (response.status === 404) {
+                        // tslint:disable-next-line:no-console
+                        console.error(
+                          'bpmn-js moddle extension "' +
+                            extensionName +
+                            '" could not be loaded.'
+                        );
+                      } else {
+                        // tslint:disable-next-line:no-console
+                        console.error(
+                          'unhandled error with bpmn-js moddle extension "' +
+                            extensionName +
+                            '"'
+                        );
+                      }
+                    });
+                });
+
+                loadRequireJsDeps();
+              });
+            } else {
               loadRequireJsDeps();
-            });
+            }
           } else {
-            loadRequireJsDeps();
+            // for consistency, also create a empty module
+            angular.module('cam.cockpit.custom', []);
+
+            // make sure that we are at the end of the require-js callback queue.
+            // Why? => the plugins will also execute require(..) which will place new
+            // entries into the queue.  if we bootstrap the angular app
+            // synchronously, the plugins' require callbacks will not have been
+            // executed yet and the angular modules provided by those plugins will
+            // not have been defined yet. Placing a new require call here will put
+            // the bootstrapping of the angular app at the end of the queue
+            require([], function() {
+              initCockpitUi(pluginDependencies);
+            });
           }
-        } else {
-          // for consistency, also create a empty module
-          angular.module('cam.cockpit.custom', []);
 
-          // make sure that we are at the end of the require-js callback queue.
-          // Why? => the plugins will also execute require(..) which will place new
-          // entries into the queue.  if we bootstrap the angular app
-          // synchronously, the plugins' require callbacks will not have been
-          // executed yet and the angular modules provided by those plugins will
-          // not have been defined yet. Placing a new require call here will put
-          // the bootstrapping of the angular app at the end of the queue
-          require([], function() {
-            initCockpitUi(pluginDependencies);
-          });
-        }
+          function loadRequireJsDeps() {
+            // configure RequireJS
+            requirejs.config(conf);
 
-        function loadRequireJsDeps() {
-          // configure RequireJS
-          requirejs.config(conf);
+            // load the dependencies and bootstrap the AngularJS application
+            requirejs(custom.deps || [], function() {
+              // create a AngularJS module (with possible AngularJS module dependencies)
+              // on which the custom scripts can register their
+              // directives, controllers, services and all when loaded
+              angular.module('cam.cockpit.custom', custom.ngDeps);
 
-          // load the dependencies and bootstrap the AngularJS application
-          requirejs(custom.deps || [], function() {
-            // create a AngularJS module (with possible AngularJS module dependencies)
-            // on which the custom scripts can register their
-            // directives, controllers, services and all when loaded
-            angular.module('cam.cockpit.custom', custom.ngDeps);
+              initCockpitUi(pluginDependencies);
+            });
+          }
 
-            initCockpitUi(pluginDependencies);
-          });
-        }
+          function initCockpitUi(pluginDependencies) {
+            window.define = undefined;
+            window.require = undefined;
 
-        function initCockpitUi(pluginDependencies) {
-          window.define = undefined;
-          window.require = undefined;
-
-          // now that we loaded the plugins and the additional modules, we can finally
-          // initialize Cockpit
-          camundaCockpitUi(pluginDependencies);
-        }
+            // now that we loaded the plugins and the additional modules, we can finally
+            // initialize Cockpit
+            camundaCockpitUi(pluginDependencies);
+          }
+        });
       });
-    });
-  }
-);
+    }
+  );
+});
 
 requirejs(['camunda-cockpit-bootstrap'], function() {});
