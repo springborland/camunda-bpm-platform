@@ -63,37 +63,37 @@ pipeline {
         }
 
 
-        script {
-          List labels = [];
-          if (env.BRANCH_NAME == cambpmDefaultBranch()) {
-            // CE master triggers EE master
-            // otherwise CE PR branch triggers EE PR branch
-            eeBranch = "cambpm-ee-main/pipeline-master"
-          } else {
-            labels = pullRequest.labels
-            eeBranch = params.EE_BRANCH_NAME
-          }
-
-          if (cambpmWithLabels('webapp-integration','all-as','h2','websphere','weblogic','jbosseap','run','spring-boot','authorizations')) {
-            cambpmTriggerDownstream("cambpm-ee/" + eeBranch, labels, true, true)
-          }
-
-          if (cambpmWithLabels('all-db','cockroachdb','authorizations')) {
-            cambpmTriggerDownstream("cambpm-ce/cambpm-sidetrack/${env.BRANCH_NAME}", labels)
-          }
-
-          if (cambpmWithLabels('daily','default-build','rolling-update','migration','all-db','h2','db2','mysql','oracle','mariadb','sqlserver','postgresql','cockroachdb')) {
-            cambpmTriggerDownstream("cambpm-ce/cambpm-daily/${env.BRANCH_NAME}", labels)
-          }
-
-          if (cambpmWithLabels('master')) {
-            withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
-              configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
-               sh 'mvn -s \$MAVEN_SETTINGS_XML org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DaltStagingDirectory=${WORKSPACE}/staging -Dmaven.repo.local=${WORKSPACE}/.m2 -DskipStaging=true -B'
-              }
-            }
-          }
-        }
+//        script {
+//          List labels = [];
+//          if (env.BRANCH_NAME == cambpmDefaultBranch()) {
+//            // CE master triggers EE master
+//            // otherwise CE PR branch triggers EE PR branch
+//            eeBranch = "cambpm-ee-main/pipeline-master"
+//          } else {
+//            labels = pullRequest.labels
+//            eeBranch = params.EE_BRANCH_NAME
+//          }
+//
+//          if (cambpmWithLabels('webapp-integration','all-as','h2','websphere','weblogic','jbosseap','run','spring-boot','authorizations')) {
+//            cambpmTriggerDownstream("cambpm-ee/" + eeBranch, labels, true, true)
+//          }
+//
+//          if (cambpmWithLabels('all-db','cockroachdb','authorizations')) {
+//            cambpmTriggerDownstream("cambpm-ce/cambpm-sidetrack/${env.BRANCH_NAME}", labels)
+//          }
+//
+//          if (cambpmWithLabels('daily','default-build','rolling-update','migration','all-db','h2','db2','mysql','oracle','mariadb','sqlserver','postgresql','cockroachdb')) {
+//            cambpmTriggerDownstream("cambpm-ce/cambpm-daily/${env.BRANCH_NAME}", labels)
+//          }
+//
+//          if (cambpmWithLabels('master')) {
+//            withMaven(jdk: 'jdk-8-latest', maven: 'maven-3.2-latest', mavenSettingsConfig: 'camunda-maven-settings', options: [artifactsPublisher(disabled: true), junitPublisher(disabled: true)]) {
+//              configFileProvider([configFile(fileId: 'maven-nexus-settings', variable: 'MAVEN_SETTINGS_XML')]) {
+//               sh 'mvn -s \$MAVEN_SETTINGS_XML org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DaltStagingDirectory=${WORKSPACE}/staging -Dmaven.repo.local=${WORKSPACE}/.m2 -DskipStaging=true -B'
+//              }
+//            }
+//          }
+//        }
 
       }
     }
