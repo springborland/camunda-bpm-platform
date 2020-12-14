@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-//  Camunda-Cockpit-Bootstrap is copied as-is, so we have to inline this
+//  Camunda-Cockpit-Bootstrap is copied as-is, so we have to inline everything
 const baseImportPath = document.querySelector("base").href + "../";
 
 function withSuffix(string, suffix) {
@@ -32,10 +32,14 @@ function addCssSource(url) {
 
 async function loadPlugins(config) {
   const customScripts = config.customScripts || [];
-  const JARScripts = window.PLUGIN_PACKAGES.map(el => {
-    addCssSource(`${el.location}/plugin.css`);
-    return `${el.location}/${el.main}`;
-  });
+  const JARScripts = window.PLUGIN_PACKAGES
+    .filter(el => 
+      el.name !== "cockpit-plugin-cockpitPlugins" && 
+      el.name !== "cockpit-plugin-cockpitEE")
+    .map(el => {
+      addCssSource(`${el.location}/plugin.css`);
+      return `${el.location}/${el.main}`;
+    });
 
   console.log(config, customScripts);
   const fetchers = customScripts.map(url =>
@@ -43,9 +47,9 @@ async function loadPlugins(config) {
     import(baseImportPath + withSuffix(url, ".js"))
   );
 
-  // fetchers.push(
-  //   ...JARScripts.map(url => {try {return import(url)} catch (e) {}})
-  // );
+  fetchers.push(
+    ...JARScripts.map(url => {try {return import(url)} catch (e) {}})
+  );
 
   const loadedPlugins = (await Promise.all(fetchers)).reduce((acc, module) => {
     const plugins = module.default;
@@ -113,6 +117,14 @@ window.__define(
         var pluginPackages = window.PLUGIN_PACKAGES || [];
         var pluginDependencies = window.PLUGIN_DEPENDENCIES || [];
     
+        pluginPackages.filter(el => 
+          el.name === "cockpit-plugin-cockpitPlugins" || 
+          el.name === "cockpit-plugin-cockpitEE");
+        pluginDependencies.filter(el => 
+          el.requirePackageName === "cockpit-plugin-cockpitPlugins" || 
+          el.requirePackageName === "cockpit-plugin-cockpitEE"
+        )
+
         pluginPackages.forEach(function(plugin) {
           var node = document.createElement('link');
           node.setAttribute('rel', 'stylesheet');
